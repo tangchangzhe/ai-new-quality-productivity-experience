@@ -79,6 +79,7 @@ export default function App() {
   const inputRef = useRef(null);
   const streamRef = useRef(null);
   const resultRef = useRef(null);
+  const autoResultTimerRef = useRef(null);
 
   const allDone = cards.every((card) => card.done || card.error);
   const hasSelectableCard = cards.some((card) => card.done && !card.error);
@@ -90,6 +91,21 @@ export default function App() {
 
   function scrollTo(ref) {
     ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function clearAutoResultTimer() {
+    if (autoResultTimerRef.current) {
+      clearTimeout(autoResultTimerRef.current);
+      autoResultTimerRef.current = null;
+    }
+  }
+
+  function scheduleAutoResults(nextIdeaId) {
+    clearAutoResultTimer();
+    autoResultTimerRef.current = setTimeout(() => {
+      autoResultTimerRef.current = null;
+      loadResults(nextIdeaId);
+    }, 2000);
   }
 
   function applyTag(tag) {
@@ -111,6 +127,7 @@ export default function App() {
     }
 
     setSubmitError("");
+    clearAutoResultTimer();
     setHasStarted(true);
     setStreamError("");
     setSelectedSlot("");
@@ -255,21 +272,24 @@ export default function App() {
       );
       setRevealed(true);
       setPhase("voted");
+      scheduleAutoResults(ideaId);
     } catch (error) {
+      clearAutoResultTimer();
       setSelectedSlot("");
       setStreamError(error.message);
     }
   }
 
-  async function loadResults() {
-    if (!ideaId || !selectedSlot) return;
+  async function loadResults(nextIdeaId = ideaId) {
+    if (!nextIdeaId) return;
+    clearAutoResultTimer();
     setPhase("results");
     setResultLoading(true);
     setResultError("");
     setTimeout(() => scrollTo(resultRef), 80);
 
     try {
-      const data = await readJson(await fetch(`/api/results?idea_id=${ideaId}`));
+      const data = await readJson(await fetch(`/api/results?idea_id=${nextIdeaId}`));
       setResult(data);
     } catch (error) {
       setResultError(error.message);
@@ -443,10 +463,16 @@ export default function App() {
             <p className="muted center">选择你心中的最佳答案</p>
           )}
           {phase === "voted" && (
-            <button className="secondary-button" onClick={loadResults}>
-              <BarChart3 size={17} />
-              查看你的结果
-            </button>
+            <>
+              <span className="live-status">
+                <Loader2 className="spin" size={16} />
+                2 秒后自动进入结果
+              </span>
+              <button className="secondary-button" onClick={() => loadResults()}>
+                <BarChart3 size={17} />
+                立即查看
+              </button>
+            </>
           )}
         </div>
       </section>
@@ -470,7 +496,7 @@ export default function App() {
         ) : resultError ? (
           <div className="locked-panel">
             <p>{resultError}</p>
-            <button className="secondary-button" onClick={loadResults}>
+            <button className="secondary-button" onClick={() => loadResults()}>
               重试
             </button>
           </div>
