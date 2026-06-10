@@ -567,8 +567,10 @@ textarea:focus {
 }
 
 .level-badge {
-  margin: 24px 0 22px;
-  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  margin: 24px auto 22px;
+  display: flex;
   border: 1px solid rgba(255, 255, 255, 0.26);
   border-radius: 8px;
   padding: 12px 14px;
@@ -576,6 +578,7 @@ textarea:focus {
   font-weight: 800;
   letter-spacing: 0;
   background: rgba(255, 255, 255, 0.12);
+  text-align: center;
 }
 
 blockquote {
