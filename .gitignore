@@ -6,6 +6,7 @@ outputs/
 .env.local
 npm-debug.log*
 *.log
+logs/
 .DS_Store
 frontend-preview.png
 .server*.log

@@ -56,15 +56,82 @@ export async function runSchema() {
     for (const statement of statements) {
       await connection.query(statement);
     }
+    await runMigrations(connection);
   } finally {
     connection.release();
   }
 }
 
+async function hasColumn(connection, tableName, columnName) {
+  const [rows] = await connection.execute(
+    `SELECT COUNT(*) AS count
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = ?
+       AND COLUMN_NAME = ?`,
+    [tableName, columnName]
+  );
+  return Number(rows[0]?.count || 0) > 0;
+}
+
+async function addColumnIfMissing(connection, tableName, columnName, definition) {
+  if (!(await hasColumn(connection, tableName, columnName))) {
+    await connection.query(`ALTER TABLE ${tableName} ADD COLUMN ${definition}`);
+  }
+}
+
+async function addIndexIfMissing(connection, tableName, indexName, definition) {
+  const [rows] = await connection.execute(
+    `SELECT COUNT(*) AS count
+     FROM INFORMATION_SCHEMA.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = ?
+       AND INDEX_NAME = ?`,
+    [tableName, indexName]
+  );
+  if (Number(rows[0]?.count || 0) === 0) {
+    await connection.query(`ALTER TABLE ${tableName} ADD ${definition}`);
+  }
+}
+
+async function runMigrations(connection) {
+  await addColumnIfMissing(connection, "ideas", "seeded", "seeded TINYINT(1) NOT NULL DEFAULT 0");
+  await addColumnIfMissing(
+    connection,
+    "ideas",
+    "is_complete",
+    "is_complete TINYINT(1) NOT NULL DEFAULT 0 COMMENT '完整走完投票和结果页后才可复用'"
+  );
+  await addColumnIfMissing(
+    connection,
+    "ideas",
+    "completed_at",
+    "completed_at TIMESTAMP NULL DEFAULT NULL"
+  );
+  await addColumnIfMissing(
+    connection,
+    "votes",
+    "voted_model_name",
+    "voted_model_name VARCHAR(80) NOT NULL DEFAULT '' COMMENT '投票时对应的展示名'"
+  );
+  await addColumnIfMissing(
+    connection,
+    "evaluations",
+    "seeded",
+    "seeded TINYINT(1) NOT NULL DEFAULT 0"
+  );
+  await addIndexIfMissing(
+    connection,
+    "ideas",
+    "idx_complete",
+    "INDEX idx_complete (is_complete, seeded, created_at)"
+  );
+}
+
 export async function insertIdea({ sessionId, content, tag = null, seeded = 0 }) {
   const [result] = await getPool().execute(
-    "INSERT INTO ideas (session_id, content, tag, seeded) VALUES (?, ?, ?, ?)",
-    [sessionId, content, tag, seeded]
+    "INSERT INTO ideas (session_id, content, tag, seeded, is_complete) VALUES (?, ?, ?, ?, ?)",
+    [sessionId, content, tag, seeded, seeded ? 1 : 0]
   );
   return result.insertId;
 }
@@ -80,7 +147,9 @@ export async function getRecentIdeas({ excludeIdeaId, excludeSessionId, limit = 
   const [rows] = await getPool().execute(
     `SELECT id, session_id, content, tag, created_at
      FROM ideas
-     WHERE id <> ? AND session_id <> ?
+     WHERE id <> ?
+       AND session_id <> ?
+       AND (seeded = 1 OR is_complete = 1)
      ORDER BY created_at DESC
      LIMIT ?`,
     [excludeIdeaId, excludeSessionId, limit]
@@ -176,10 +245,19 @@ export async function getEvaluationByIdea(ideaId) {
 
 export async function computePercentile(score) {
   const [[{ lower }]] = await getPool().execute(
-    "SELECT COUNT(*) AS lower FROM evaluations WHERE score < ?",
+    `SELECT COUNT(*) AS lower
+     FROM evaluations e
+     INNER JOIN ideas i ON i.id = e.idea_id
+     WHERE e.score < ?
+       AND (i.seeded = 1 OR i.is_complete = 1)`,
     [score]
   );
-  const [[{ total }]] = await getPool().execute("SELECT COUNT(*) AS total FROM evaluations");
+  const [[{ total }]] = await getPool().execute(
+    `SELECT COUNT(*) AS total
+     FROM evaluations e
+     INNER JOIN ideas i ON i.id = e.idea_id
+     WHERE i.seeded = 1 OR i.is_complete = 1`
+  );
   const lowerCount = Number(lower);
   const totalCount = Number(total);
 
@@ -188,6 +266,16 @@ export async function computePercentile(score) {
   }
 
   return Math.round((lowerCount / totalCount) * 100);
+}
+
+export async function markIdeaComplete(ideaId) {
+  await getPool().execute(
+    `UPDATE ideas
+     SET is_complete = 1,
+         completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP)
+     WHERE id = ?`,
+    [ideaId]
+  );
 }
 
 export async function saveEvaluation({ ideaId, sessionId, level, score, comment, percentile, seeded = 0 }) {
@@ -207,10 +295,14 @@ export async function getStats() {
   const [[ideas]] = await getPool().execute("SELECT COUNT(*) AS count FROM ideas");
   const [[votes]] = await getPool().execute("SELECT COUNT(*) AS count FROM votes");
   const [[evaluations]] = await getPool().execute("SELECT COUNT(*) AS count FROM evaluations");
+  const [[completed]] = await getPool().execute(
+    "SELECT COUNT(*) AS count FROM ideas WHERE seeded = 1 OR is_complete = 1"
+  );
 
   return {
     ideas: Number(ideas.count),
     votes: Number(votes.count),
-    evaluations: Number(evaluations.count)
+    evaluations: Number(evaluations.count),
+    reusable_ideas: Number(completed.count)
   };
 }

@@ -324,9 +324,9 @@ export default function App() {
             <span className={idea.trim().length < 10 ? "hint warn" : "hint"}>
               {idea.trim().length}/1000
             </span>
-            <button className="primary-button" disabled={phase === "submitting"} type="submit">
+            <button className="primary-button" disabled={phase !== "input"} type="submit">
               {phase === "submitting" ? <Loader2 className="spin" size={18} /> : <Send size={18} />}
-              生成四个方案
+              {phase === "submitting" ? "提交中" : phase === "input" ? "生成四个方案" : "本轮已开始"}
             </button>
           </div>
           {submitError && <p className="error-text">{submitError}</p>}
