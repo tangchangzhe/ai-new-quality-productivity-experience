@@ -358,6 +358,16 @@ export default function App() {
           <h2>三模型匿名 PK</h2>
         </div>
 
+        <div className="choice-guide">
+          <p>下面三张卡片是不同 AI 对同一个想法给出的匿名方案。读完后，选出你心中的最佳答案。</p>
+          <div className="choice-tags" aria-label="选择参考">
+            <span>更有启发</span>
+            <span>更能落地</span>
+            <span>更有新意</span>
+            <span>表达更清晰</span>
+          </div>
+        </div>
+
         <div className="model-grid">
           {cards.map((card) => {
             const voteStats = card.modelKey ? distributionByModel.get(card.modelKey) : null;
@@ -430,7 +440,7 @@ export default function App() {
           )}
           {streamError && <p className="error-text">{streamError}</p>}
           {phase === "ready_to_vote" && hasSelectableCard && (
-            <p className="muted center">选择你认为最有启发的方案</p>
+            <p className="muted center">选择你心中的最佳答案</p>
           )}
           {phase === "voted" && (
             <button className="secondary-button" onClick={loadResults}>

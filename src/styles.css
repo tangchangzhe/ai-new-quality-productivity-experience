@@ -304,6 +304,43 @@ textarea:focus {
   justify-content: flex-start;
 }
 
+.choice-guide {
+  width: min(1180px, 100%);
+  margin: -8px auto 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  color: #596272;
+}
+
+.choice-guide p {
+  margin: 0;
+  max-width: 720px;
+  line-height: 1.7;
+  font-size: 15px;
+}
+
+.choice-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.choice-tags span {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(20, 23, 31, 0.1);
+  border-radius: 8px;
+  padding: 0 10px;
+  color: #404858;
+  background: rgba(255, 255, 255, 0.64);
+  font-size: 13px;
+  font-weight: 650;
+}
+
 .model-grid {
   width: min(1280px, 100%);
   margin: 0 auto;
@@ -651,6 +688,15 @@ blockquote {
 
   .model-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .choice-guide {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .choice-tags {
+    justify-content: flex-start;
   }
 }
 
