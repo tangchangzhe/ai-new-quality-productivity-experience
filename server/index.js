@@ -14,16 +14,19 @@ import {
   getRecentIdeas,
   getStats,
   insertIdea,
+  markIdeaComplete,
   recordVote,
   saveEvaluation,
   updateModelRun
 } from "./db.js";
 import { shuffleModels, slotLabels } from "./models.js";
 import { mockEvaluation, mockResonance } from "./mock.js";
+import { logError } from "./logger.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distPath = path.resolve(__dirname, "../dist");
 const app = express();
+const activeModelRuns = new Map();
 
 app.disable("x-powered-by");
 app.use(express.json({ limit: "64kb" }));
@@ -47,6 +50,92 @@ function serializeRunsForReveal(runs) {
     display_name: run.display_name,
     status: run.status
   }));
+}
+
+function hasUsableResponse(run) {
+  return run.status === "done" && String(run.response || "").trim().length >= 80;
+}
+
+function broadcast(subscribers, event, data) {
+  for (const subscriber of subscribers) {
+    if (!subscriber.closed) {
+      sendSse(subscriber.res, event, data);
+    }
+  }
+}
+
+function subscribeToRun(key, subscriber) {
+  const active = activeModelRuns.get(key);
+  if (active) {
+    active.subscribers.add(subscriber);
+    if (active.responseText) {
+      sendSse(subscriber.res, "chunk", {
+        model: active.slot,
+        text: active.responseText
+      });
+    }
+  }
+  return active;
+}
+
+function startModelRun({ idea, run, ideaId, subscriber }) {
+  const key = `${ideaId}:${run.slot}`;
+  const existing = subscribeToRun(key, subscriber);
+  if (existing) {
+    return existing.promise;
+  }
+
+  const active = {
+    slot: run.slot,
+    responseText: "",
+    subscribers: new Set([subscriber])
+  };
+
+  active.promise = (async () => {
+    try {
+      for await (const text of streamModelIdea({
+        content: idea.content,
+        modelId: run.model_id,
+        modelKey: run.model_key
+      })) {
+        active.responseText += text;
+        broadcast(active.subscribers, "chunk", { model: run.slot, text });
+      }
+
+      if (active.responseText.trim().length < 80) {
+        throw new Error("模型输出过短或中断");
+      }
+
+      await updateModelRun({
+        ideaId,
+        slot: run.slot,
+        response: active.responseText,
+        status: "done"
+      });
+    } catch (error) {
+      const message = error?.message || "该模型暂时无法响应";
+      logError("stream_model", error, {
+        ideaId,
+        slot: run.slot,
+        modelKey: run.model_key,
+        modelId: run.model_id
+      });
+      await updateModelRun({
+        ideaId,
+        slot: run.slot,
+        response: active.responseText,
+        status: "error",
+        errorMessage: message.slice(0, 500)
+      });
+      broadcast(active.subscribers, "model_error", { model: run.slot, message });
+    } finally {
+      broadcast(active.subscribers, "done", { model: run.slot });
+      activeModelRuns.delete(key);
+    }
+  })();
+
+  activeModelRuns.set(key, active);
+  return active.promise;
 }
 
 async function ensureRuns(ideaId) {
@@ -153,64 +242,44 @@ app.get("/api/stream-responses", async (req, res) => {
       }))
     });
 
-    if (runs.every((run) => run.status !== "pending")) {
-      for (const run of runs) {
-        if (run.status === "done" && run.response) {
-          sendSse(res, "chunk", { model: run.slot, text: run.response });
-        } else {
-          sendSse(res, "model_error", {
-            model: run.slot,
-            message: run.error_message || "该模型暂时无法响应"
-          });
-        }
-        sendSse(res, "done", { model: run.slot });
+    const subscriber = { res, closed: false };
+    const pendingPromises = [];
+    req.on("close", () => {
+      subscriber.closed = true;
+      for (const active of activeModelRuns.values()) {
+        active.subscribers.delete(subscriber);
       }
-      sendSse(res, "all_done", {});
-      return res.end();
+    });
+
+    for (const run of runs) {
+      if (hasUsableResponse(run)) {
+        sendSse(res, "chunk", { model: run.slot, text: run.response });
+        sendSse(res, "done", { model: run.slot });
+        continue;
+      }
+
+      if (run.status === "error") {
+        sendSse(res, "model_error", {
+          model: run.slot,
+          message: run.error_message || "该模型暂时无法响应"
+        });
+        sendSse(res, "done", { model: run.slot });
+        continue;
+      }
+
+      if (run.status === "done") {
+        sendSse(res, "model_error", {
+          model: run.slot,
+          message: "该模型输出不完整"
+        });
+        sendSse(res, "done", { model: run.slot });
+        continue;
+      }
+
+      pendingPromises.push(startModelRun({ idea, run, ideaId, subscriber }));
     }
 
-    await Promise.allSettled(
-      runs.map(async (run) => {
-        let responseText = "";
-        try {
-          for await (const text of streamModelIdea({
-            content: idea.content,
-            modelId: run.model_id,
-            modelKey: run.model_key
-          })) {
-            responseText += text;
-            if (!closed) {
-              sendSse(res, "chunk", { model: run.slot, text });
-            }
-          }
-
-          await updateModelRun({
-            ideaId,
-            slot: run.slot,
-            response: responseText,
-            status: "done"
-          });
-
-          if (!closed) {
-            sendSse(res, "done", { model: run.slot });
-          }
-        } catch (error) {
-          const message = error?.message || "该模型暂时无法响应";
-          await updateModelRun({
-            ideaId,
-            slot: run.slot,
-            response: responseText,
-            status: "error",
-            errorMessage: message.slice(0, 500)
-          });
-
-          if (!closed) {
-            sendSse(res, "model_error", { model: run.slot, message });
-            sendSse(res, "done", { model: run.slot });
-          }
-        }
-      })
-    );
+    await Promise.allSettled(pendingPromises);
 
     if (!closed) {
       sendSse(res, "all_done", {});
@@ -243,6 +312,10 @@ app.post("/api/votes", async (req, res, next) => {
       return res.status(400).json({ error: "failed model cannot be selected" });
     }
 
+    if (!hasUsableResponse(run)) {
+      return res.status(400).json({ error: "model response is incomplete" });
+    }
+
     await recordVote({
       ideaId,
       sessionId,
@@ -251,7 +324,7 @@ app.post("/api/votes", async (req, res, next) => {
     });
 
     const [distribution, runs] = await Promise.all([
-      getVoteDistribution(),
+      getVoteDistribution({ includeIdeaId: ideaId }),
       getModelRuns(ideaId)
     ]);
 
@@ -313,6 +386,7 @@ app.get("/api/results", async (req, res, next) => {
         percentile
       });
     }
+    await markIdeaComplete(ideaId);
 
     res.json({
       resonance: {
@@ -340,8 +414,11 @@ if (fs.existsSync(distPath)) {
   });
 }
 
-app.use((error, _req, res, _next) => {
-  console.error(error);
+app.use((error, req, res, _next) => {
+  logError("http", error, {
+    method: req.method,
+    path: req.path
+  });
   res.status(500).json({
     error: "server_error",
     message: process.env.NODE_ENV === "production" ? "服务暂时不可用" : error.message

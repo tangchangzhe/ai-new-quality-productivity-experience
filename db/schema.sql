@@ -4,8 +4,11 @@ CREATE TABLE IF NOT EXISTS ideas (
   content TEXT NOT NULL,
   tag VARCHAR(20) DEFAULT NULL COMMENT '用户点击的引导词标签，可为空',
   seeded TINYINT(1) NOT NULL DEFAULT 0,
+  is_complete TINYINT(1) NOT NULL DEFAULT 0 COMMENT '完整走完投票和结果页后才可复用',
+  completed_at TIMESTAMP NULL DEFAULT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_created (created_at),
+  INDEX idx_complete (is_complete, seeded, created_at),
   INDEX idx_seeded (seeded)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
