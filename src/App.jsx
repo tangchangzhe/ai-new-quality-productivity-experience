@@ -162,6 +162,17 @@ export default function App() {
       );
     });
 
+    source.addEventListener("replace", (event) => {
+      const data = JSON.parse(event.data);
+      setCards((previous) =>
+        previous.map((card) =>
+          card.slot === data.model
+            ? { ...card, text: data.text || "", error: "", status: "streaming" }
+            : card
+        )
+      );
+    });
+
     source.addEventListener("model_error", (event) => {
       const data = JSON.parse(event.data);
       setCards((previous) =>

@@ -13,6 +13,7 @@ import {
   getModelRuns,
   getRecentIdeas,
   getStats,
+  getVoteDistribution,
   insertIdea,
   markIdeaComplete,
   recordVote,
@@ -56,6 +57,27 @@ function hasUsableResponse(run) {
   return run.status === "done" && String(run.response || "").trim().length >= 80;
 }
 
+async function* collectModelText({ content, modelId, modelKey, ideaId, slot, attempt }) {
+  let text = "";
+  for await (const chunk of streamModelIdea({ content, modelId, modelKey })) {
+    text += chunk;
+    yield { chunk, text };
+  }
+
+  if (text.trim().length < 80) {
+    logError("short_model_output", new Error("模型输出过短或中断"), {
+      ideaId,
+      slot,
+      modelKey,
+      modelId,
+      attempt,
+      length: text.trim().length,
+      preview: text.trim().slice(0, 120)
+    });
+    throw new Error("模型输出过短或中断");
+  }
+}
+
 function broadcast(subscribers, event, data) {
   for (const subscriber of subscribers) {
     if (!subscriber.closed) {
@@ -93,17 +115,35 @@ function startModelRun({ idea, run, ideaId, subscriber }) {
 
   active.promise = (async () => {
     try {
-      for await (const text of streamModelIdea({
-        content: idea.content,
-        modelId: run.model_id,
-        modelKey: run.model_key
-      })) {
-        active.responseText += text;
-        broadcast(active.subscribers, "chunk", { model: run.slot, text });
-      }
+      for (let attempt = 1; attempt <= 2; attempt += 1) {
+        let attemptText = "";
+        try {
+          for await (const part of collectModelText({
+            content: idea.content,
+            modelId: run.model_id,
+            modelKey: run.model_key,
+            ideaId,
+            slot: run.slot,
+            attempt
+          })) {
+            attemptText = part.text;
+            if (attempt === 1) {
+              active.responseText += part.chunk;
+              broadcast(active.subscribers, "chunk", { model: run.slot, text: part.chunk });
+            }
+          }
 
-      if (active.responseText.trim().length < 80) {
-        throw new Error("模型输出过短或中断");
+          if (attempt > 1) {
+            active.responseText = attemptText;
+            broadcast(active.subscribers, "replace", { model: run.slot, text: attemptText });
+          }
+          break;
+        } catch (error) {
+          if (attempt === 2) {
+            throw error;
+          }
+          active.responseText = "";
+        }
       }
 
       await updateModelRun({
@@ -408,8 +448,19 @@ app.get("/api/results", async (req, res, next) => {
 });
 
 if (fs.existsSync(distPath)) {
-  app.use(express.static(distPath, { maxAge: "1h" }));
+  app.use(
+    express.static(distPath, {
+      etag: false,
+      index: false,
+      lastModified: false,
+      maxAge: 0,
+      setHeaders(res) {
+        res.setHeader("Cache-Control", "no-store");
+      }
+    })
+  );
   app.get(/^\/(?!api).*/, (_req, res) => {
+    res.setHeader("Cache-Control", "no-store");
     res.sendFile(path.join(distPath, "index.html"));
   });
 }
