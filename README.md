@@ -63,14 +63,14 @@ pm2 save
 DATABASE_URL=mysql://db_user:db_password@127.0.0.1:3306/ai_productivity
 AI_GATEWAY_API_KEY=your_vercel_ai_gateway_key
 MODEL_DEEPSEEK=deepseek/deepseek-v4-pro
-MODEL_GEMINI=google/gemini-3.1-pro-preview
+MODEL_GEMINI=google/gemini-3.5-flash
 MODEL_GPT=openai/gpt-5.5
 MODEL_CLAUDE=anthropic/claude-opus-4.6
 MODEL_EVALUATOR=deepseek/deepseek-v4-pro
 MODEL_RESONANCE=deepseek/deepseek-v4-pro
 ```
 
-`MODEL_EVALUATOR` 已按要求默认使用 DeepSeek V4 Pro。实际模型 ID 需要替换成你 Vercel AI Gateway 里可用的精确 ID。Gateway 模型列表中 3.1 Pro 的可用 ID 是 `google/gemini-3.1-pro-preview`。
+`MODEL_EVALUATOR` 已按要求默认使用 DeepSeek V4 Pro。实际模型 ID 需要替换成你 Vercel AI Gateway 里可用的精确 ID。Gemini 默认使用 `google/gemini-3.5-flash`。
 
 没有配置 `AI_GATEWAY_API_KEY` 且非生产环境时，会自动进入 mock 模式。也可以显式设置：
 

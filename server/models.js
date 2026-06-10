@@ -8,8 +8,8 @@ export const modelDefinitions = [
   {
     key: "gemini",
     env: "MODEL_GEMINI",
-    defaultModelId: "google/gemini-3.1-pro-preview",
-    displayName: "Gemini 3.1 Pro Preview"
+    defaultModelId: "google/gemini-3.5-flash",
+    displayName: "Gemini 3.5 Flash"
   },
   {
     key: "gpt",
@@ -32,17 +32,10 @@ export const slotLabels = {
   model_4: "模型 ④"
 };
 
-function normalizeModelId(modelId) {
-  const aliases = {
-    "google/gemini-3.1-pro": "google/gemini-3.1-pro-preview"
-  };
-  return aliases[modelId] || modelId;
-}
-
 export function getConfiguredModels() {
   return modelDefinitions.map((model) => ({
     ...model,
-    modelId: normalizeModelId(process.env[model.env] || model.defaultModelId)
+    modelId: process.env[model.env] || model.defaultModelId
   }));
 }
 
