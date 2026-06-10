@@ -188,6 +188,10 @@ export async function getModelRuns(ideaId) {
   return rows;
 }
 
+export async function deleteModelRuns(ideaId) {
+  await getPool().execute("DELETE FROM model_runs WHERE idea_id = ?", [ideaId]);
+}
+
 export async function getModelRunBySlot(ideaId, slot) {
   const [rows] = await getPool().execute(
     "SELECT * FROM model_runs WHERE idea_id = ? AND slot = ? LIMIT 1",

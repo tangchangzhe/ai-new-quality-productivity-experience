@@ -8,12 +8,12 @@ import {
   Vote
 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
+import { ModelIcon } from "./modelIcons.jsx";
 
 const slotLabels = {
   model_1: "模型 ①",
   model_2: "模型 ②",
-  model_3: "模型 ③",
-  model_4: "模型 ④"
+  model_3: "模型 ③"
 };
 
 const guideTags = [
@@ -290,7 +290,7 @@ export default function App() {
             </div>
             <h1>AI × 新质生产力</h1>
             <p>
-              写下一个方向，让四个模型匿名提出方案，投票后看到你的想法处在哪一层。
+              写下一个方向，让三个模型匿名提出方案，投票后看到你的想法处在哪一层。
             </p>
             <button className="primary-button" onClick={() => scrollTo(inputRef)}>
               <ArrowDown size={18} />
@@ -345,7 +345,7 @@ export default function App() {
             </span>
             <button className="primary-button" disabled={hasStarted || phase !== "input"} type="submit">
               {phase === "submitting" ? <Loader2 className="spin" size={18} /> : <Send size={18} />}
-              {phase === "submitting" ? "提交中" : phase === "input" ? "生成四个方案" : "本轮已开始"}
+              {phase === "submitting" ? "提交中" : phase === "input" ? "生成三个方案" : "本轮已开始"}
             </button>
           </div>
           {submitError && <p className="error-text">{submitError}</p>}
@@ -355,7 +355,7 @@ export default function App() {
       <section className="section stream-section" ref={streamRef}>
         <div className="section-heading">
           <span>02</span>
-          <h2>四模型匿名 PK</h2>
+          <h2>三模型匿名 PK</h2>
         </div>
 
         <div className="model-grid">
@@ -375,6 +375,7 @@ export default function App() {
               >
                 <header>
                   <div className="flip-label">
+                    {revealed && card.realName ? <ModelIcon modelKey={card.modelKey} /> : null}
                     <span>{revealed && card.realName ? card.realName : card.label}</span>
                   </div>
                   {card.done && !card.error ? <CheckCircle2 size={17} /> : null}
@@ -399,7 +400,10 @@ export default function App() {
                   ) : (
                     <div className="vote-result">
                       <div className="vote-meta">
-                        <span>{card.realName}</span>
+                        <span className="model-name-with-icon">
+                          <ModelIcon modelKey={card.modelKey} size={16} />
+                          {card.realName}
+                        </span>
                         <strong>{voteStats?.percent || 0}%</strong>
                       </div>
                       <div className="bar-track">
@@ -506,7 +510,12 @@ export default function App() {
                   ? "你是第一位参与者"
                   : `你超越了 ${result.evaluation.percentile}% 的参与者`}
               </p>
-              {selectedCard?.realName && <p className="chosen-model">你选择了 {selectedCard.realName}</p>}
+              {selectedCard?.realName && (
+                <p className="chosen-model">
+                  你选择了 <ModelIcon modelKey={selectedCard.modelKey} size={16} />
+                  {selectedCard.realName}
+                </p>
+              )}
             </article>
           </div>
         ) : (

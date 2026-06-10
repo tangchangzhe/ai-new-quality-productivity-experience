@@ -116,10 +116,9 @@ const domains = [
   }
 ];
 
-const modelKeys = ["deepseek", "gemini", "gpt", "claude"];
+const modelKeys = ["deepseek", "gpt", "claude"];
 const modelNames = {
   deepseek: "DeepSeek V4 Pro",
-  gemini: "Gemini 3.1 Pro",
   gpt: "GPT-5.5",
   claude: "Claude Opus 4.6"
 };

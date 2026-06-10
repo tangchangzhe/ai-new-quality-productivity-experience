@@ -7,6 +7,7 @@ import { evaluateIdea, findResonance, shouldUseMockAI, streamModelIdea } from ".
 import {
   computePercentile,
   createModelRuns,
+  deleteModelRuns,
   getEvaluationByIdea,
   getIdeaById,
   getModelRunBySlot,
@@ -20,7 +21,7 @@ import {
   saveEvaluation,
   updateModelRun
 } from "./db.js";
-import { shuffleModels, slotLabels } from "./models.js";
+import { modelSlotCount, shuffleModels, slotLabels } from "./models.js";
 import { mockEvaluation, mockResonance } from "./mock.js";
 import { logError } from "./logger.js";
 
@@ -180,10 +181,13 @@ function startModelRun({ idea, run, ideaId, subscriber }) {
 
 async function ensureRuns(ideaId) {
   let runs = await getModelRuns(ideaId);
-  if (runs.length === 4) {
+  if (runs.length === modelSlotCount()) {
     return runs;
   }
 
+  if (runs.length > 0) {
+    await deleteModelRuns(ideaId);
+  }
   await createModelRuns(ideaId, shuffleModels());
   runs = await getModelRuns(ideaId);
   return runs;

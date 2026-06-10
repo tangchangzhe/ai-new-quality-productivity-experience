@@ -6,12 +6,6 @@ export const modelDefinitions = [
     displayName: "DeepSeek V4 Pro"
   },
   {
-    key: "gemini",
-    env: "MODEL_GEMINI",
-    defaultModelId: "google/gemini-3.5-flash",
-    displayName: "Gemini 3.5 Flash"
-  },
-  {
     key: "gpt",
     env: "MODEL_GPT",
     defaultModelId: "openai/gpt-5.5",
@@ -28,8 +22,7 @@ export const modelDefinitions = [
 export const slotLabels = {
   model_1: "模型 ①",
   model_2: "模型 ②",
-  model_3: "模型 ③",
-  model_4: "模型 ④"
+  model_3: "模型 ③"
 };
 
 export function getConfiguredModels() {
@@ -73,6 +66,10 @@ export function shuffleModels() {
 
 export function allModelKeys() {
   return modelDefinitions.map((model) => model.key);
+}
+
+export function modelSlotCount() {
+  return modelDefinitions.length;
 }
 
 export function displayNameForModelKey(key) {

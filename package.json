@@ -10,7 +10,9 @@
     "build": "vite build",
     "start": "node server/index.js",
     "db:init": "node scripts/init-db.js",
-    "db:seed": "node scripts/seed.js"
+    "db:seed": "node scripts/seed.js",
+    "db:reset": "node scripts/reset-db.js",
+    "db:refresh": "node scripts/reset-db.js && node scripts/seed.js"
   },
   "dependencies": {
     "ai": "^6.0.0",

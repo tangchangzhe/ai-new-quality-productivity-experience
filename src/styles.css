@@ -308,7 +308,7 @@ textarea:focus {
   width: min(1280px, 100%);
   margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -344,9 +344,50 @@ textarea:focus {
 
 .flip-label {
   min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
   font-weight: 750;
   color: var(--ink);
   transition: transform 420ms ease;
+}
+
+.flip-label span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-icon {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: white;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.26);
+  vertical-align: -6px;
+}
+
+.model-icon.deepseek {
+  background: linear-gradient(135deg, #4d6bfe, #2ed3c6);
+}
+
+.model-icon.openai {
+  background: linear-gradient(135deg, #111827, #6b7280);
+}
+
+.model-icon.claude {
+  background: linear-gradient(135deg, #d97745, #f0c27b);
+}
+
+.model-icon-fallback {
+  color: #14171f;
+  background: rgba(20, 23, 31, 0.08);
+  font-size: 10px;
+  font-weight: 800;
 }
 
 .revealed .flip-label {
@@ -395,6 +436,20 @@ textarea:focus {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.model-name-with-icon {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.model-name-with-icon .model-icon,
+.chosen-model .model-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
 }
 
 .bar-track {
@@ -561,6 +616,13 @@ blockquote {
 .chosen-model {
   margin: 12px 0 0;
   color: rgba(255, 255, 255, 0.82);
+}
+
+.chosen-model {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
 }
 
 .spin {
