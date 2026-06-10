@@ -66,6 +66,7 @@ export default function App() {
   const [selectedTag, setSelectedTag] = useState("");
   const [ideaId, setIdeaId] = useState(null);
   const [phase, setPhase] = useState("input");
+  const [hasStarted, setHasStarted] = useState(false);
   const [cards, setCards] = useState(makeCards);
   const [submitError, setSubmitError] = useState("");
   const [streamError, setStreamError] = useState("");
@@ -99,6 +100,10 @@ export default function App() {
 
   async function submitIdea(event) {
     event.preventDefault();
+    if (hasStarted || phase !== "input") {
+      return;
+    }
+
     const content = idea.trim();
     if (content.length < 10) {
       setSubmitError("再多说几句，让 AI 更好地理解你的想法");
@@ -106,6 +111,7 @@ export default function App() {
     }
 
     setSubmitError("");
+    setHasStarted(true);
     setStreamError("");
     setSelectedSlot("");
     setDistribution([]);
@@ -133,6 +139,7 @@ export default function App() {
       startStream(data.idea_id);
     } catch (error) {
       setPhase("input");
+      setHasStarted(false);
       setSubmitError(error.message);
     }
   }
@@ -273,6 +280,7 @@ export default function App() {
 
   return (
     <main className="app-shell">
+      <div className="top-ribbon">习概汇报作业</div>
       <section className="section hero-section">
         <div className="hero-grid">
           <div className="hero-copy">
@@ -335,7 +343,7 @@ export default function App() {
             <span className={idea.trim().length < 10 ? "hint warn" : "hint"}>
               {idea.trim().length}/1000
             </span>
-            <button className="primary-button" disabled={phase !== "input"} type="submit">
+            <button className="primary-button" disabled={hasStarted || phase !== "input"} type="submit">
               {phase === "submitting" ? <Loader2 className="spin" size={18} /> : <Send size={18} />}
               {phase === "submitting" ? "提交中" : phase === "input" ? "生成四个方案" : "本轮已开始"}
             </button>
@@ -432,7 +440,7 @@ export default function App() {
       <section className="section result-section" ref={resultRef}>
         <div className="section-heading">
           <span>03</span>
-          <h2>结果卡片</h2>
+          <h2>你的想法层级</h2>
         </div>
 
         {!selectedSlot ? (

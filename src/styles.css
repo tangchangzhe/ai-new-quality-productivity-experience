@@ -52,6 +52,22 @@ button {
   overflow-x: hidden;
 }
 
+.top-ribbon {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  z-index: 20;
+  transform: translateX(-50%);
+  border: 1px solid rgba(20, 23, 31, 0.1);
+  border-radius: 8px;
+  padding: 6px 10px;
+  color: #5d6675;
+  background: rgba(255, 255, 255, 0.74);
+  backdrop-filter: blur(12px);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .section {
   min-height: 100vh;
   width: 100%;
