@@ -337,7 +337,7 @@ export default function App() {
       <section className="section input-section" ref={inputRef}>
         <div className="section-heading">
           <span>01</span>
-          <h2>输入你的想法</h2>
+          <h2>输入你的AI赋能新质生产力想法</h2>
         </div>
 
         <form className="input-panel" onSubmit={submitIdea}>
